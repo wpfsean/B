@@ -1,0 +1,63 @@
+package com.javaandexcel;
+
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+
+import com.javaandexcel.utils.JdbcUtil;
+
+/**
+ * @author wpf 2016年11月8日
+ */
+public class DbAndExcel {
+
+	public static void main(String[] args) {
+		FileInputStream input;
+		try {
+
+			Connection con = JdbcUtil.getconnection();
+			Statement stat = con.createStatement();
+			
+			input = new FileInputStream(
+					"C:\\Users\\Administrator\\Desktop\\wpf联通数据\\ab.xls");
+			Workbook book = new HSSFWorkbook(input);
+			Sheet sheet = book.getSheetAt(0);
+			for (int rowNum = 1; rowNum <= sheet.getLastRowNum(); rowNum++) {
+				Row row = sheet.getRow(rowNum);
+				if (row != null) {
+					HSSFCell address = (HSSFCell) row.getCell(3);
+					if (address.getCellType() == address.CELL_TYPE_STRING) {
+
+						String string_Address = String.valueOf(address
+								.getStringCellValue());
+						System.out.println(string_Address);
+						
+						
+					}
+
+				}
+
+			}
+		} catch (FileNotFoundException e) {
+			System.out.println("读取文件失败");
+			e.printStackTrace();
+		} catch (IOException e) {
+			System.err.println("IO操作异常");
+			e.printStackTrace();
+		} catch (SQLException e) {
+			System.err.println("数据库操作有错误");
+			e.printStackTrace();
+		}
+
+	}
+
+}

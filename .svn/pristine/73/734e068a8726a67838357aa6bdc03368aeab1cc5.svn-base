@@ -1,0 +1,30 @@
+package com.javaandexcel.utils;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+public class JdbcUtil {
+	
+	
+	
+	public static Connection getconnection() {
+		Connection conn=null;
+		try {
+			Class.forName("com.mysql.jdbc.Driver");
+			
+			 conn = DriverManager.getConnection(
+					"jdbc:mysql://127.0.0.1:3306/lk", "root", "12345678");
+		} catch (ClassNotFoundException | SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return  conn;
+		
+	}
+	
+
+	
+
+}

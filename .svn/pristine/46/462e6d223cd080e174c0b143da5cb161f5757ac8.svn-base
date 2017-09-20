@@ -1,0 +1,260 @@
+package com.javaandexcel;
+
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+
+import net.sf.json.JSONObject;
+
+import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFCellStyle;
+import org.apache.poi.hssf.usermodel.HSSFRow;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+
+import com.javaandexcel.bean.CompanyBean;
+import com.javaandexcel.bean.GeoPoint;
+import com.javaandexcel.utils.MapUtils;
+
+/**
+ * @author wpf
+ *  
+ *  @根据excel中的地址列，读取数据， 把结果写到excel中指定 的列上
+ * 
+ * 
+ *   
+ */
+public class InPutExcelTest {
+
+	public static void main(String[] args) {
+		List<CompanyBean> mList = new ArrayList<CompanyBean>();
+		try {
+
+			FileInputStream input = new FileInputStream(
+					"C:\\Users\\Administrator\\Desktop\\wpf联通数据\\ab.xls");
+			
+			int num=input.available();
+			
+			System.out.println(num+"");
+			Workbook book = new HSSFWorkbook(input);
+			Sheet sheet = book.getSheetAt(0);
+			for (int rowNum = 0; rowNum <= sheet.getLastRowNum(); rowNum++) {
+				Row row = sheet.getRow(rowNum);
+				if (row != null) {
+					CompanyBean bean = new CompanyBean();
+					HSSFCell address = (HSSFCell) row.getCell(3);
+					bean.setAddress(getValue(address));
+					System.out.println(getValue(address));
+					mList.add(bean);
+				}
+			}
+		} catch (Exception e) {
+			System.err.println("读取文件失败");
+		}
+
+	
+		// 第一步，创建一个webbook，对应一个Excel文件
+		HSSFWorkbook wb = new HSSFWorkbook();
+		// 第二步，在webbook中添加一个sheet,对应Excel文件中的sheet
+		HSSFSheet sheet = wb.createSheet("测试分区1");
+		// 第三步，在sheet中添加表头第0行,注意老版本poi对Excel的行数列数有限制short
+		HSSFRow row = sheet.createRow((int) 0);
+		// 第四步，创建单元格，并设置值表头 设置表头居中
+		HSSFCellStyle style = wb.createCellStyle();
+		style.setAlignment(HSSFCellStyle.ALIGN_CENTER); // 创建一个居中格式
+		HashMap map1 = new HashMap();
+		System.out.println("集合内元素个数:"+mList.size());
+		// 对地址信息判定
+		for (int j = 0; j < mList.size(); j++) {
+			
+			row=sheet.createRow((int)j);
+//			row.createCell((short) 2).setCellValue(mList.get(j).getCompanyname());
+//			row.createCell((short) 3).setCellValue(mList.get(j).getCity());
+//			row.createCell((short) 4).setCellValue(mList.get(j).getRegister_code());
+//			row.createCell((short) 5).setCellValue(mList.get(j).getRegister_date());
+//			row.createCell((short) 6).setCellValue(mList.get(j).getRegister_money());
+//			row.createCell((short) 7).setCellValue(mList.get(j).getCompany_type());
+//			row.createCell((short) 8).setCellValue(mList.get(j).getCompany_state());
+//			row.createCell((short) 9).setCellValue(mList.get(j).getRegister_authority());
+//			row.createCell((short) 10).setCellValue(mList.get(j).getTrade_name());
+//			row.createCell((short) 11).setCellValue(mList.get(j).getLegal_person());
+//			row.createCell((short) 12).setCellValue(mList.get(j).getContact_infor());
+			row.createCell((short) 1).setCellValue(mList.get(j).getAddress());
+			
+			String old_address = mList.get(j).getAddress();
+			//System.out.println((j+2)+mList.get(j).getAddress());
+			String new_address = processingString(old_address);
+			//System.out.println((j+2)+new_address);
+			Map<String, Double> map = getLngAndLat(new_address);
+			GeoPoint g = new GeoPoint(map.get("lat"), map.get("lng"));//
+
+			Set<Entry<String, ArrayList<GeoPoint>>> entrySet = MapUtils
+					.getMap().entrySet();
+			// 根据key找values
+			for (Entry<String, ArrayList<GeoPoint>> entry : entrySet) {
+				String key = entry.getKey();
+				ArrayList<GeoPoint> listPoint = entry.getValue();
+				int num = isIntersect(listPoint, g);
+				// 判断奇偶
+				if (num % 2 != 0) {
+					System.out.println((j + 1) + key);
+					String arr[] = key.split("	");
+					// map.put("2,五区", "呼家楼");
+				//	map1.put((j + 1) + "," + arr[0], arr[1]);//存放需要输出到excel的数据
+					row.createCell((short) 0).setCellValue((j + 1)+arr[0]);
+					row.createCell((short) 1).setCellValue((j + 1)+arr[1]);
+				}
+			}
+		}
+	
+		try {
+			FileOutputStream fout = new FileOutputStream("C:\\Users\\Administrator\\Desktop\\wpf联通数据\\aa.xls");
+			wb.write(fout);
+			fout.close();
+			
+		} catch (Exception e) {
+			// TODO: handle exception
+		}
+
+	}
+	
+	
+	public static Map<String, Double> getLngAndLat(String address) {
+		Map<String, Double> map = new HashMap<String, Double>();
+		String url = "http://api.map.baidu.com/geocoder/v2/?address=" + address
+				+ "&output=json&ak=g86Dz3yDT672RtxDtvAHx6bhbkfYZaap";
+		String json = loadJSON(url);
+		// System.out.println("result：" + json);
+		try {
+
+			// 判断json是否为空，相应的处理
+			if (json != null || !json.equals("")) {
+				JSONObject obj = JSONObject.fromObject(json);
+				if (obj.get("status").toString().equals("0")) {
+					double lng = obj.getJSONObject("result")
+							.getJSONObject("location").getDouble("lng");
+					double lat = obj.getJSONObject("result")
+							.getJSONObject("location").getDouble("lat");
+					map.put("lng", lng);
+					map.put("lat", lat);
+				} else if (obj.get("status").toString().equals("302")) {
+					System.out.println("百度key的最大使用值已用完");
+				} else if (obj.get("status").toString().equals("101")) {
+					System.out.println("ak不存在");
+				} else if (obj.get("status").toString().equals("2")) {
+					// 地址太长，就默认是郑州，不在任何范围之内
+					System.out.println("地址信息太长");
+					System.out.println(address);
+					map.put("lng", 113.6313490000);
+					map.put("lat", 34.7534880000);
+				}
+			} else if (json == null || json.endsWith("")) {
+				// 模拟数据，郑州：34.7534880000,113.6313490000郑州
+				String result = "{\"status\":0,\"result\":{\"location\":{\"lng\":113.6313490000,\"lat\":34.7534880000},\"precise\":1,\"confidence\":80,\"level\":\"商务大厦\"}}";
+				JSONObject obj = JSONObject.fromObject(result);
+				if (obj.get("status").toString().equals("0")) {
+					double lng = obj.getJSONObject("result")
+							.getJSONObject("location").getDouble("lng");
+					double lat = obj.getJSONObject("result")
+							.getJSONObject("location").getDouble("lat");
+					map.put("lng", lng);
+					map.put("lat", lat);
+				}
+			}
+		} catch (Exception e) {
+			// json错误时，默认郑州
+			map.put("lng", 113.6313490000);
+			map.put("lat", 34.7534880000);
+			System.err.println("json 错误");
+		}
+
+		return map;
+	}
+
+	// 获取列中的值
+	private static String getValue(HSSFCell xssfRow) {
+		if (xssfRow.getCellType() == xssfRow.CELL_TYPE_BOOLEAN) {
+			return String.valueOf(xssfRow.getBooleanCellValue());
+		} else if (xssfRow.getCellType() == xssfRow.CELL_TYPE_NUMERIC) {
+			return String.valueOf(xssfRow.getNumericCellValue());
+		} else {
+			return String.valueOf(xssfRow.getStringCellValue());
+		}
+	}
+
+	// 地址信息过长时剪裁
+	public static String processingString(String str) {
+		if (str.contains("楼")) {
+			return str.substring(0, str.indexOf("楼") + 1);
+		} else if (str.contains("村")) {
+			return str.substring(0, str.indexOf("村") + 1);
+		} else if (str.contains("园")) {
+			return str.substring(0, str.indexOf("园") + 1);
+		} else if (str.contains("场")) {
+			return str.substring(0, str.indexOf("场") + 1);
+		}else if (str.contains("街")) {
+			return str.substring(0, str.indexOf("街") + 1);
+		} else if (str.contains("路")) {
+			return str.substring(0, str.indexOf("路") + 1);
+		} else if (str.contains("同")) {
+			return str.substring(0, str.indexOf("同") + 1);
+		}
+		return str;
+	}
+
+	// 把地址对象转成经纬度，返回json数据
+	public static String loadJSON(String url) {
+		StringBuilder json = new StringBuilder();
+		try {
+			URL oracle = new URL(url);
+			URLConnection yc = oracle.openConnection();
+			BufferedReader in = new BufferedReader(new InputStreamReader(
+					yc.getInputStream()));
+			String inputLine = null;
+			while ((inputLine = in.readLine()) != null) {
+				json.append(inputLine);
+			}
+			in.close();
+		} catch (MalformedURLException e) {
+		} catch (IOException e) {
+		}
+		return json.toString();
+	}
+
+	// 判断某个点是否在某个范围之内
+	public static int isIntersect(ArrayList<GeoPoint> ps, GeoPoint p) {
+		int num = 0;
+		ps.add(ps.get(0));
+		// 按顺序判断每条边是否与射线有交点
+		for (int i = 0; i < ps.size() - 1; i++) {
+			if (((ps.get(i).getLongitudeE6() / 1e6 - p.getLongitudeE6() / 1e6) * (ps
+					.get(i + 1).getLongitudeE6() / 1e6 - p.getLongitudeE6() / 1e6)) > 0) {
+			} else {
+				double a = (ps.get(i).getLongitudeE6() / 1e6 - ps.get(i + 1)
+						.getLongitudeE6() / 1e6)
+						/ (ps.get(i).getLatitudeE6() / 1e6 - ps.get(i + 1)
+								.getLatitudeE6() / 1e6);
+				double b = ps.get(i).getLongitudeE6() / 1e6 - a
+						* ps.get(i).getLatitudeE6() / 1e6;
+				if (((p.getLongitudeE6() / 1e6 - b) / a) > (p.getLatitudeE6() / 1e6)) {
+				} else
+					num++;
+			}
+		}
+		return num;
+	}
+}
